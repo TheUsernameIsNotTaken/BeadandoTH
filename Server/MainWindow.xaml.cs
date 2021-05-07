@@ -52,6 +52,12 @@ namespace Server
 
         //Delegate
         public delegate void RegFormDelegate();
+        public delegate void UploadDelegate(IPAddress address, string filename);
+        public delegate void DownloadDelegate();
+
+        //Pooling
+        private bool _uploading = false;
+        private bool _downloading = false;
 
         public MainWindow()
         {
@@ -225,6 +231,20 @@ namespace Server
                             msgToSend.strMessage = msgReceived.strName + " -> " + msgReceived.strRec + " : " + msgReceived.strMessage;
                         break;
 
+                    case Command.Upload:
+                        //Get the correct IP
+                        IPEndPoint ipendpoint = clientSocket.RemoteEndPoint as IPEndPoint;
+
+                        //Set the pooling flag
+                        _uploading = true;
+
+                        //Create a delegate for upload handling
+                        UploadDelegate upload = new UploadDelegate(BeginUpload);
+                        this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, 
+                            upload, ipendpoint.Address, Data.FILES_FOLDER + msgReceived.strName + "*" + msgReceived.strRec + "\\" + msgReceived.strMessage);
+
+                        break;
+
                     case Command.List:
 
                         //Send the names of all users in the chat room to the new user
@@ -375,6 +395,27 @@ namespace Server
                     await AsyncSaveData();
                 }
             }
+        }
+
+        private void BeginUpload(IPAddress address, string filename)
+        {
+            var listener = new TcpListener(address, Data.UPLOAD_PORT);
+            listener.Start();
+            using (var client = listener.AcceptTcpClient())
+            using (var stream = client.GetStream())
+            using (var output = File.Create(filename))
+            {
+                Console.WriteLine("Client connected. Starting to receive the file");
+
+                // read the file in chunks of 1KB
+                var buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    output.Write(buffer, 0, bytesRead);
+                }
+            }
+            _uploading = false;
         }
     }
 }

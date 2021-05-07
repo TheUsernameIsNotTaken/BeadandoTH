@@ -36,6 +36,7 @@ namespace Client
         public delegate void UjFormDelegate();
 
         private bool _loggedOut = false;
+        private IPEndPoint ipEndPoint;
 
         byte[] _byteData = new byte[1024];
 
@@ -81,7 +82,7 @@ namespace Client
                 //l_ip = (string)this.Dispatcher.Invoke(IP, null);
                 IPAddress ipAddress = IPAddress.Parse(this.ServerIPTextBox.Text);
                 //Server is listening on port 1000
-                IPEndPoint ipEndPoint = new IPEndPoint(ipAddress, 1000);
+                ipEndPoint = new IPEndPoint(ipAddress, 1000);
 
                 //Connect to the server
                 //clientSocket.Connect(ipEndPoint);
@@ -150,7 +151,7 @@ namespace Client
         private void UjForm()
         {
             CliensMessage uj_form;
-            uj_form = new CliensMessage(clientSocket, UserNameTextBox.Text);
+            uj_form = new CliensMessage(clientSocket, UserNameTextBox.Text, ipEndPoint);
             uj_form.Show();
             Close();
         }

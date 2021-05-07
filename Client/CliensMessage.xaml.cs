@@ -1,6 +1,8 @@
 ﻿using DataLibrary;
 using System;
 using System.ComponentModel;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Windows;
@@ -18,6 +20,8 @@ namespace Client
         byte[] byteData = new byte[1024];
         public string _partner;
         private bool _safeClose = false;
+        private string _filename;
+        private IPEndPoint _endPoint;
 
         private delegate void UpdateDelegate(string pMessage);
         private delegate void PartnerTextDelegate();
@@ -43,7 +47,7 @@ namespace Client
             InitializeComponent();
         }
 
-        public CliensMessage(Socket pSocket, String pName)
+        public CliensMessage(Socket pSocket, String pName, IPEndPoint ipEndPoint)
         {
             InitializeComponent();
 
@@ -51,6 +55,8 @@ namespace Client
             LoginName = pName;
             this.Title = pName;
             _partner = Data.PUBLIC_ID;
+            _filename = null;
+            _endPoint = ipEndPoint;
 
             ClientSocket.BeginReceive(byteData, 0, byteData.Length, SocketFlags.None,
                     new AsyncCallback(OnReceive), ClientSocket);
@@ -193,5 +199,39 @@ namespace Client
             }
         }
 
+        private void buttonOpen_Click(object sender, RoutedEventArgs e)
+        {
+            //Lista lekérés küldése
+            Data msgToSend = new Data();
+            msgToSend.cmdCommand = Command.File;
+            msgToSend.strName = LoginName;
+            msgToSend.strMessage = "test1.png";
+            msgToSend.strRec = _partner;
+            byte[] b = msgToSend.ToByte();
+            ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None, new AsyncCallback(OnSend), ClientSocket);
+
+            // Configure open file dialog box
+            var dialog = new Microsoft.Win32.OpenFileDialog();
+            dialog.FileName = "Picture"; // Default file name
+            dialog.DefaultExt = ".png"; // Default file extension
+            dialog.Filter = "Pictures(.png)|*.png"; // Filter files by extension
+
+            // Show open file dialog box
+            bool? result = dialog.ShowDialog();
+
+            // Process open file dialog box results
+            if (result == true)
+            {
+                // Open document
+                _filename = dialog.FileName;
+
+                using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                {
+                    socket.Connect(_endPoint.Address.ToString(), 1001);
+                    // Send Length (Int64)
+                    socket.SendFile(_filename);
+                }
+            }
+        }
     }
 }

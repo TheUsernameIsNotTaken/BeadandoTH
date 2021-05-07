@@ -12,15 +12,20 @@ namespace DataLibrary
         Logout,     //Logout of the server
         Message,    //Send a text message to all the chat clients
         List,       //Get a list of users in the chat room from the server
-        Accept,
-        Decline,
+        Accept,     //Accept a connection
+        Decline,    //Decline a connection
+        Upload,     //Upload a file
+        Download,   //Download a file
         Null        //No command
     }
 
     public class Data
     {
 
+        public static string FILES_FOLDER = "Files\\";
         public static string PUBLIC_ID = "PUBLIC";
+        public static int UPLOAD_PORT = 1001;
+        public static int DOWNLOAD_PORT = 1002;
 
         //Default constructor
         public Data()
