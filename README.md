@@ -9,10 +9,10 @@ Tartalmazza:
  - Szabályos kliens bezárás.
  - A kliens lecsatlakoztatása minden kilépési forma esetén.
  - Többszálas, aszinkron működés mind GUI frissítés, ablakok kezelése és kommunikáció területén is (ahol lehetséges).
+ - Szervez bezárás esetén szabályos kijelentkeztetés
 
 Update 1:
 4-es szintű alapprojekt.
 
 Tervezett frissítési út:
- - Szervez bezárás esetén szabályos kijelentkeztetés
  - Fájlok megosztása.
