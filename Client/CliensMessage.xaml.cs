@@ -269,14 +269,21 @@ namespace Client
             {
                 using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
                 {
-                    await socket.ConnectAsync(_endPoint.Address.ToString(), Data.UPLOAD_PORT);
-                    // Send Length (Int64)
-                    socket.SendFile(_filename);
+                    try
+                    {
+                        await socket.ConnectAsync(_endPoint.Address.ToString(), Data.UPLOAD_PORT);
+                        // Send Length (Int64)
+                        socket.SendFile(_filename);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message, "Client Upload");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Client Upload");
+                MessageBox.Show(ex.Message, "Client Upload Using");
             }
 
             //Upload's end
@@ -352,29 +359,39 @@ namespace Client
 
             var listener = new TcpListener(_endPoint.Address, Data.DOWNLOAD_PORT);
             listener.Start();
-            using (var client = await listener.AcceptTcpClientAsync())
-            using (var stream = client.GetStream())
-            using (var output = File.Create(filename))
+            try
             {
-                try
+                using (var client = await listener.AcceptTcpClientAsync())
+                using (var stream = client.GetStream())
+                using (var output = File.Create(filename))
                 {
-                    //Console.WriteLine("Server connected. Starting to receive the file.");
-
-                    // read the file in chunks of 1KB
-                    var buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    try
                     {
-                        output.Write(buffer, 0, bytesRead);
+                        //Console.WriteLine("Server connected. Starting to receive the file.");
+
+                        // read the file in chunks of 1KB
+                        var buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            output.Write(buffer, 0, bytesRead);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        new Thread(() =>
+                        {
+                            MessageBox.Show(ex.Message, "Client Download");
+                        }).Start();
                     }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                new Thread(() =>
                 {
-                    new Thread(() =>
-                    {
-                        MessageBox.Show(ex.Message, "Client Download");
-                    }).Start();
-                }
+                    MessageBox.Show(ex.Message, "Client Download Using");
+                }).Start();
             }
             listener.Stop();
             //Console.WriteLine("Server Disconnected.");
@@ -410,23 +427,34 @@ namespace Client
             string receiver = LoginName;
 
             //Select a file to download
-            DownloadWindow down_window;
-            down_window = new DownloadWindow(fileNames);
-            if (down_window.ShowDialog() ?? false)
-            {
-                string toDownload = down_window.selectedFile;
-                string pathDown = Data.FILES_FOLDER + (sender.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (sender + "-" + receiver));
-                Directory.CreateDirectory(pathDown);
 
-                //Download the selected file
-                Task.Factory.StartNew(() => DownloadTask(pathDown + "\\" + toDownload, sender, receiver));
+            //null esetén meg se nyitom
+            if (string.IsNullOrEmpty(fileNames))
+            {
+
+                MessageBox.Show("Nem találhatóak fájlok!", "Fáljletöltés");
             }
+            //Adat esetén megnyitom
             else
             {
-                new Thread(() =>
+                DownloadWindow down_window;
+                down_window = new DownloadWindow(fileNames);
+                if (down_window.ShowDialog() ?? false)
                 {
-                    MessageBox.Show("Sikertelen fájlválsztás.", "Client Download");
-                }).Start();
+                    string toDownload = down_window.selectedFile;
+                    string pathDown = Data.FILES_FOLDER + (sender.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (sender + "-" + receiver));
+                    Directory.CreateDirectory(pathDown);
+
+                    //Download the selected file
+                    Task.Factory.StartNew(() => DownloadTask(pathDown + "\\" + toDownload, sender, receiver));
+                }
+                else
+                {
+                    new Thread(() =>
+                    {
+                        MessageBox.Show("Sikertelen fájlválsztás.", "Client Download");
+                    }).Start();
+                }
             }
         }
 

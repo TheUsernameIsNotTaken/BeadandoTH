@@ -289,14 +289,14 @@ namespace Server
                         this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
                             download, downEndPoint.Address, pathDown + "\\" + msgReceived.strMessage);
 
-                        msgToSend.strMessage = "<<<" + msgReceived.strName + " megkezdte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
+                        msgToSend.strMessage = "<<<" + msgReceived.strRec + " megkezdte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
 
                         break;
 
                     case Command.DownloadAck:
 
                         //Set the text of the message that we will broadcast to all  (if public)
-                        msgToSend.strMessage = "<<<" + msgReceived.strName + " befejezte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
+                        msgToSend.strMessage = "<<<" + msgReceived.strRec + " befejezte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
                         break;
 
                     case Command.DownloadList:
@@ -522,14 +522,24 @@ namespace Server
                 using (var stream = client.GetStream())
                 using (var output = File.Create(filename))
                 {
-                    //Console.WriteLine("Client connected. Starting to receive the file.");
-
-                    // read the file in chunks of 1KB
-                    var buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    try
                     {
-                        output.Write(buffer, 0, bytesRead);
+                        //Console.WriteLine("Client connected. Starting to receive the file.");
+
+                        // read the file in chunks of 1KB
+                        var buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            output.Write(buffer, 0, bytesRead);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        new Thread(() =>
+                        {
+                            MessageBox.Show(ex.Message, "Server Upload");
+                        }).Start();
                     }
                 }
                 listener.Stop();
@@ -539,7 +549,7 @@ namespace Server
             {
                 new Thread(() =>
                 {
-                    MessageBox.Show(ex.Message, "Server Upload");
+                    MessageBox.Show(ex.Message, "Server Upload Using");
                 }).Start();
             }
 
@@ -600,14 +610,24 @@ namespace Server
             {
                 using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
                 {
-                    await socket.ConnectAsync(address, Data.DOWNLOAD_PORT);
-                    // Send Length (Int64)
-                    socket.SendFile(filename);
+                    try
+                    {
+                        await socket.ConnectAsync(address, Data.DOWNLOAD_PORT);
+                        // Send Length (Int64)
+                        socket.SendFile(filename);
+                    }
+                    catch (Exception ex)
+                    {
+                        new Thread(() =>
+                        {
+                            MessageBox.Show(ex.Message, "Server Download");
+                        }).Start();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Server Download");
+                MessageBox.Show(ex.Message, "Server Download Using");
             }
 
             //Download's end

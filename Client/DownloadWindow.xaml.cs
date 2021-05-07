@@ -46,18 +46,11 @@ namespace Client
         public DownloadWindow(string files)
         {
             InitializeComponent();
-            
+
             //Frissíteni kell a listát
             UpdateDelegate update = new UpdateDelegate(UpdateFiles);
             this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, update, files);
 
-            if (string.IsNullOrEmpty(files))
-            {
-                new Thread(() =>
-                {
-                    MessageBox.Show("Nem találhatóak fájlok!", "Fáljletöltés");
-                }).Start();
-            }
         }
 
         private void FilesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
