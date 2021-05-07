@@ -265,7 +265,7 @@ namespace Server
                         IPEndPoint upEndPoint = clientSocket.RemoteEndPoint as IPEndPoint;
 
                         //Create a delegate for upload handling
-                        string pathUp = Data.FILES_FOLDER + msgReceived.strName + "-" + msgReceived.strRec;
+                        string pathUp = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
                         Directory.CreateDirectory(pathUp);
                         UploadDelegate upload = new UploadDelegate(BeginUpload);
                         this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, 
@@ -283,7 +283,7 @@ namespace Server
                         msgToSend.strMessage = null;
 
                         //Create a delegate for upload handling
-                        string pathDown = Data.FILES_FOLDER + msgReceived.strName + "-" + msgReceived.strRec;
+                        string pathDown = Data.FILES_FOLDER + ( msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
                         Directory.CreateDirectory(pathDown);
                         //DownloadDelegate download = new DownloadDelegate(BeginDownload);
                         //this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
