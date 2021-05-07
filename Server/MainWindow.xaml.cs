@@ -283,7 +283,7 @@ namespace Server
                         msgToSend.strMessage = null;
 
                         //Create a delegate for upload handling
-                        string pathDown = Data.FILES_FOLDER + ( msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
+                        string pathDown = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
                         Directory.CreateDirectory(pathDown);
                         //DownloadDelegate download = new DownloadDelegate(BeginDownload);
                         //this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
@@ -299,6 +299,12 @@ namespace Server
                                 notFirstDown = true;
                             msgToSend.strMessage += file;
                         }
+
+                        message = msgToSend.ToByte();
+
+                        //Send the filenames
+                        clientSocket.BeginSend(message, 0, message.Length, SocketFlags.None,
+                                new AsyncCallback(OnSend), clientSocket);
 
                         break;
 
@@ -330,7 +336,7 @@ namespace Server
                         break;
                 }
 
-                if ( !(msgToSend.cmdCommand == Command.List || msgToSend.cmdCommand == Command.Decline) )   //List and decline messages are not broadcasted
+                if ( !(msgToSend.cmdCommand == Command.List || msgToSend.cmdCommand == Command.Download || msgToSend.cmdCommand == Command.Decline) )   //List and decline messages are not broadcasted
                 {
                     message = msgToSend.ToByte();
 
