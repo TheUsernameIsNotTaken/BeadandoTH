@@ -306,7 +306,7 @@ namespace Server
                         if (clientInfo.socket != clientSocket || msgToSend.cmdCommand != Command.Login)
                         {
                             //A publikus az broadcast, amúgy csak a 2 partnernek megy. -> Figyelni kell, hogy PUBLIC legyen alapból a cél, és feladó is legyen mindig.
-                            if (msgReceived.strRec.Equals(Data.PUBLIC_ID) || clientInfo.strName.Equals(msgReceived.strRec) || clientInfo.strName.Equals(msgReceived.strName))
+                            if (msgToSend.strRec.Equals(Data.PUBLIC_ID) || clientInfo.strName.Equals(msgReceived.strRec) || clientInfo.strName.Equals(msgReceived.strName))
                             {
                                 //Send the message to all users
                                 clientInfo.socket.BeginSend(message, 0, message.Length, SocketFlags.None,
@@ -559,15 +559,12 @@ namespace Server
                     msgToSend.strMessage = "<<<A szerver bezar>>>";
                     byte[] message = msgToSend.ToByte();
 
-                    List<Task> sendTasks = new List<Task>();
-
                     //Minden felhasználónak elküldöm
                     foreach (ClientInfo clientInfo in clientList)
                     {
-                        sendTasks.Add(new Task( () => clientInfo.socket.Send(message, message.Length, SocketFlags.None)));
+                        clientInfo.socket.BeginSend(message, 0, message.Length, SocketFlags.None,
+                            new AsyncCallback(OnSend), clientInfo.socket);
                     }
-
-                    await Task.WhenAll(sendTasks);
                 }
                 else
                 {
