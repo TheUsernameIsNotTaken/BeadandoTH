@@ -52,7 +52,7 @@ namespace Server
 
         //Delegate
         public delegate void RegFormDelegate();
-        public delegate void UploadDelegate(IPAddress address, string filename);
+        public delegate void UploadDelegate(IPAddress address, string filename, string sender, string receiver);
         public delegate void DownloadDelegate();
 
         //Pooling
@@ -103,7 +103,7 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "SGSserverTCP");
+                MessageBox.Show(ex.Message, "Server Loaded");
             }   
         }
 
@@ -123,7 +123,7 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "SGSserverTCP");
+                MessageBox.Show(ex.Message, "Server Connect");
             }
         }
 
@@ -170,7 +170,7 @@ namespace Server
                             clientList.Add(clientInfo);
 
                             //Set the text of the message that we will broadcast to all users
-                            msgToSend.strMessage = "<<<" + msgReceived.strName + " has joined the room>>>";
+                            msgToSend.strMessage = "<<<" + msgReceived.strName + " csatlakozott a szobahoz>>>";
                         }
                         else
                         {
@@ -182,7 +182,8 @@ namespace Server
 
                             //Log it only on the server-side
                             UpdateDelegate update = new UpdateDelegate(UpdateMessage);
-                            this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update, "<<<Unauthorized " + msgReceived.strName + " tried to join the room>>>" + "\r\n");
+                            this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update,
+                                "<<<" + msgReceived.strName + " megprobalt a szobahoz csatlakozni engedely nelkul>>>" + "\r\n");
 
                             //Send the message and close the connection
                             clientSocket.Send(message, 0, message.Length, SocketFlags.None);
@@ -219,29 +220,29 @@ namespace Server
                         clientSocket.Shutdown(SocketShutdown.Both);
                         clientSocket.Close();
 
-                        msgToSend.strMessage = "<<<" + msgReceived.strName + " has left the room>>>";
+                        msgToSend.strMessage = "<<<" + msgReceived.strName + " elhagyta a szobat>>>";
                         break;
 
                     case Command.Message:
 
                         //Set the text of the message that we will broadcast to all  (if public)
-                        if (msgReceived.strRec.Equals(Data.PUBLIC_ID))
-                            msgToSend.strMessage = msgReceived.strName + " -> All : " + msgReceived.strMessage;
-                        else
-                            msgToSend.strMessage = msgReceived.strName + " -> " + msgReceived.strRec + " : " + msgReceived.strMessage;
+                        msgToSend.strMessage = msgReceived.strName + " -> " +
+                            (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? "Mindenki" : msgReceived.strRec) +
+                            " : " + msgReceived.strMessage;
                         break;
 
                     case Command.Upload:
                         //Get the correct IP
                         IPEndPoint ipendpoint = clientSocket.RemoteEndPoint as IPEndPoint;
 
-                        //Set the pooling flag
-                        _uploading = true;
-
                         //Create a delegate for upload handling
+                        string path = Data.FILES_FOLDER + msgReceived.strName + "-" + msgReceived.strRec;
+                        Directory.CreateDirectory(path);
                         UploadDelegate upload = new UploadDelegate(BeginUpload);
                         this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, 
-                            upload, ipendpoint.Address, Data.FILES_FOLDER + msgReceived.strName + "*" + msgReceived.strRec + "\\" + msgReceived.strMessage);
+                            upload, ipendpoint.Address, path + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
+
+                        msgToSend.strMessage = "<<<" + msgReceived.strName + " megkezdte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj feltolteset>>>";
 
                         break;
 
@@ -307,7 +308,7 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "SGSserverTCP");
+                MessageBox.Show(ex.Message, "Server Receive");
             }
         }
 
@@ -320,7 +321,7 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "SGSserverTCP");
+                MessageBox.Show(ex.Message, "Server Send");
             }
         }
 
@@ -374,7 +375,7 @@ namespace Server
                 User userToAdd = reg_form.NewUser;
 
                 //Check if the username is allowed.
-                if (userToAdd.username.Contains('*') || userToAdd.username.Equals(Data.PUBLIC_ID))
+                if (userToAdd.username.Contains('*') || userToAdd.username.Equals(Data.PUBLIC_ID) || userToAdd.username.Contains('-'))
                 {
                     new Thread(() =>
                     {
@@ -397,25 +398,80 @@ namespace Server
             }
         }
 
-        private void BeginUpload(IPAddress address, string filename)
+        private async void BeginUpload(IPAddress address, string filename, string sender, string receiver)
         {
-            var listener = new TcpListener(address, Data.UPLOAD_PORT);
-            listener.Start();
-            using (var client = listener.AcceptTcpClient())
-            using (var stream = client.GetStream())
-            using (var output = File.Create(filename))
-            {
-                Console.WriteLine("Client connected. Starting to receive the file");
 
-                // read the file in chunks of 1KB
-                var buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            //Wait for others to finish
+            if (_uploading)
+            {
+                Thread.Sleep(2000);
+            }
+
+            //Set the pooling flag
+            _uploading = true;
+
+            try
+            {
+                var listener = new TcpListener(address, Data.UPLOAD_PORT);
+                listener.Start();
+                using (var client = await listener.AcceptTcpClientAsync())
+                using (var stream = client.GetStream())
+                using (var output = File.Create(filename))
                 {
-                    output.Write(buffer, 0, bytesRead);
+                    //Console.WriteLine("Client connected. Starting to receive the file.");
+
+                    // read the file in chunks of 1KB
+                    var buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        output.Write(buffer, 0, bytesRead);
+                    }
+                }
+                listener.Stop();
+                //Console.WriteLine("Client Disconnected.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Server Upload");
+            }
+
+            _uploading = false;
+
+            //Send an upload ack message
+            byte[] message;
+            Data msgToSend = new Data();
+
+            msgToSend.cmdCommand = Command.Message;
+            msgToSend.strName = sender;
+            msgToSend.strRec = receiver;
+            msgToSend.strMessage = sender + " -> " +
+                (receiver.Equals(Data.PUBLIC_ID) ? "Mindenki" : receiver) +
+                " : '" + System.IO.Path.GetFileName(filename) + "' nevu fajl sikeresen megosztva.";
+
+            message = msgToSend.ToByte();
+
+            try
+            {
+                foreach (ClientInfo clientInfo in clientList)
+                {
+                    //A publikus az broadcast, amúgy csak a 2 partnernek megy. -> Figyelni kell, hogy PUBLIC legyen alapból a cél, és feladó is legyen mindig.
+                    if (receiver.Equals(Data.PUBLIC_ID) || clientInfo.strName.Equals(sender) || clientInfo.strName.Equals(receiver))
+                    {
+                        //Send the message to all users
+                        clientInfo.socket.BeginSend(message, 0, message.Length, SocketFlags.None,
+                            new AsyncCallback(OnSend), clientInfo.socket);
+                    }
                 }
             }
-            _uploading = false;
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Server Upload Message");
+            }
+
+            UpdateDelegate update = new UpdateDelegate(UpdateMessage);
+            await this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update,
+                msgToSend.strMessage + "\r\n");
         }
     }
 }

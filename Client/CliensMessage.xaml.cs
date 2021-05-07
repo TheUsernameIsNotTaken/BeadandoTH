@@ -1,10 +1,12 @@
 ﻿using DataLibrary;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace Client
@@ -22,12 +24,33 @@ namespace Client
         private bool _safeClose = false;
         private string _filename;
         private IPEndPoint _endPoint;
+        private bool _isUploading = false;
+        private bool _isDownloading = false;
 
         private delegate void UpdateDelegate(string pMessage);
         private delegate void PartnerTextDelegate();
         private delegate void RecFormDelegate(string msgReceivedMsg);
         private delegate void FoFormDelegate();
         private delegate void LogOutDelegate();
+
+        ////-------------
+        ////TEST
+        ////Test Task
+        //void TestTask()
+        //{
+        //    Console.WriteLine("Thread '{0}' OPENED.", Thread.CurrentThread.ManagedThreadId);
+        //    while (_testRun)
+        //    {
+        //        Thread.Sleep(2000);
+        //    }
+        //    _testRun = true;
+        //    Console.WriteLine("Thread '{0}' START.", Thread.CurrentThread.ManagedThreadId);
+        //    Thread.Sleep(2500);
+        //    Console.WriteLine("Thread '{0}' END.", Thread.CurrentThread.ManagedThreadId);
+        //    _testRun = false;
+        //}
+        //bool _testRun = false;
+        ////-------------
 
         private void UpdateMessage(string pMessage)
         {
@@ -61,56 +84,68 @@ namespace Client
             ClientSocket.BeginReceive(byteData, 0, byteData.Length, SocketFlags.None,
                     new AsyncCallback(OnReceive), ClientSocket);
 
-            //ClientSocket.Receive(byteData,SocketFlags.None);
-
         }
 
         private void OnReceive(IAsyncResult ar)
         {
-            Socket clientSocket = (Socket)ar.AsyncState;
-            clientSocket.EndReceive(ar);
-            
-            //Transform the array of bytes received from the user into an
-            //intelligent form of object Data
-            Data msgReceived = new Data(byteData);
-
-            //Csak a nekem szóló üzenet kell. Ez akkor szükésges, ha I SOCKETEN TÖBB KAPCSOLAT IS VAN - Ez az 1 port per IP miatt lehet probléma, 1 gépes bemutatás esetén.
-            if (msgReceived.cmdCommand.Equals(Command.Logout) && msgReceived.strName.Equals(LoginName))
+            try
             {
-                //Lecsatlakozás
-                ClientSocket.Shutdown(SocketShutdown.Both);
-                ClientSocket.Close();
+                Socket clientSocket = (Socket)ar.AsyncState;
+                clientSocket.EndReceive(ar);
 
-                _safeClose = true;
+                //Transform the array of bytes received from the user into an
+                //intelligent form of object Data
+                Data msgReceived = new Data(byteData);
 
-                FoFormDelegate foForm = new FoFormDelegate(FoForm);
-                this.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Normal, foForm);
-            }
-            else
-            {
-                ClientSocket.BeginReceive(byteData, 0, byteData.Length, SocketFlags.None,
-                    new AsyncCallback(OnReceive), ClientSocket);
-
-                if (msgReceived.cmdCommand.Equals(Command.List) && msgReceived.strName.Equals(LoginName))
+                //Csak a nekem szóló üzenet kell. Ez akkor szükésges, ha I SOCKETEN TÖBB KAPCSOLAT IS VAN - Ez az 1 port per IP miatt lehet probléma, 1 gépes bemutatás esetén.
+                if (msgReceived.cmdCommand.Equals(Command.Logout) && msgReceived.strName.Equals(LoginName))
                 {
-                    //Új ablak nyitása a megfelelő adatok átadásával.
-                    RecFormDelegate recForm = new RecFormDelegate(RecForm);
-                    this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, recForm,
-                        msgReceived.strMessage);
+                    //Lecsatlakozás
+                    ClientSocket.Shutdown(SocketShutdown.Both);
+                    ClientSocket.Close();
+
+                    _safeClose = true;
+
+                    FoFormDelegate foForm = new FoFormDelegate(FoForm);
+                    this.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Normal, foForm);
                 }
                 else
                 {
-                    UpdateDelegate update = new UpdateDelegate(UpdateMessage);
-                    this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, update,
-                        msgReceived.strMessage + "\r\n");
+                    ClientSocket.BeginReceive(byteData, 0, byteData.Length, SocketFlags.None,
+                        new AsyncCallback(OnReceive), ClientSocket);
+
+                    if (msgReceived.cmdCommand.Equals(Command.List) && msgReceived.strName.Equals(LoginName))
+                    {
+                        //Új ablak nyitása a megfelelő adatok átadásával.
+                        RecFormDelegate recForm = new RecFormDelegate(RecForm);
+                        this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, recForm,
+                            msgReceived.strMessage);
+                    }
+                    else
+                    {
+                        UpdateDelegate update = new UpdateDelegate(UpdateMessage);
+                        this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, update,
+                            msgReceived.strMessage + "\r\n");
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Client Receive");
             }
         }
 
         private void OnSend(IAsyncResult ar)
         {
-            Socket clientSocket = (Socket)ar.AsyncState;
-            clientSocket.EndSend(ar);
+            try
+            {
+                Socket clientSocket = (Socket)ar.AsyncState;
+                clientSocket.EndSend(ar);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Client Send");
+            }
         }
 
         //Send a message
@@ -120,7 +155,7 @@ namespace Client
             msgToSend.cmdCommand = Command.Message;
             msgToSend.strName = LoginName;
             msgToSend.strRec = _partner;
-            msgToSend.strMessage = textBox2.Text;
+            msgToSend.strMessage = MessageTextBox.Text;
 
             byte[] b = msgToSend.ToByte();
             ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None,
@@ -199,22 +234,47 @@ namespace Client
             }
         }
 
+        private async void UploadTask()
+        {
+            //Wait for a free space
+            if (_isUploading)
+            {
+                Thread.Sleep(1000);
+            }
+
+            //Start uploading
+            _isUploading = true;
+
+            //Try to upload, and catch if it's not successfull. 
+            try
+            {
+                using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                {
+                    await socket.ConnectAsync(_endPoint.Address.ToString(), Data.UPLOAD_PORT);
+                    // Send Length (Int64)
+                    socket.SendFile(_filename);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Client Upload");
+            }
+
+            //Upload's end
+            _isUploading = false;
+        }
+
         private void buttonOpen_Click(object sender, RoutedEventArgs e)
         {
-            //Lista lekérés küldése
-            Data msgToSend = new Data();
-            msgToSend.cmdCommand = Command.File;
-            msgToSend.strName = LoginName;
-            msgToSend.strMessage = "test1.png";
-            msgToSend.strRec = _partner;
-            byte[] b = msgToSend.ToByte();
-            ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None, new AsyncCallback(OnSend), ClientSocket);
+
+            //Test task list
+            //Task.Factory.StartNew(() => TestTask());
 
             // Configure open file dialog box
             var dialog = new Microsoft.Win32.OpenFileDialog();
-            dialog.FileName = "Picture"; // Default file name
-            dialog.DefaultExt = ".png"; // Default file extension
-            dialog.Filter = "Pictures(.png)|*.png"; // Filter files by extension
+            dialog.FileName = "Picture";                // Default file name
+            dialog.DefaultExt = ".png";                 // Default file extension
+            dialog.Filter = "Pictures(.png)|*.png";     // Filter files by extension
 
             // Show open file dialog box
             bool? result = dialog.ShowDialog();
@@ -225,12 +285,16 @@ namespace Client
                 // Open document
                 _filename = dialog.FileName;
 
-                using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
-                {
-                    socket.Connect(_endPoint.Address.ToString(), 1001);
-                    // Send Length (Int64)
-                    socket.SendFile(_filename);
-                }
+                //Send Upload Data
+                Data msgToSend = new Data();
+                msgToSend.cmdCommand = Command.Upload;
+                msgToSend.strName = LoginName;
+                msgToSend.strRec = _partner;
+                msgToSend.strMessage = Path.GetFileName(_filename);
+                byte[] b = msgToSend.ToByte();
+                ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None, new AsyncCallback(OnSend), ClientSocket);
+
+                Task.Factory.StartNew(() => UploadTask());
             }
         }
     }
