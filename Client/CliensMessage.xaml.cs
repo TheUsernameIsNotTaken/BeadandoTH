@@ -34,6 +34,7 @@ namespace Client
         private delegate void FoFormDelegate();
         private delegate void LogOutDelegate();
         private delegate void CloseDelegate();
+        private delegate void DownloadDelegate(string fileNames);
 
         private void CloseRun()
         {
@@ -128,6 +129,13 @@ namespace Client
                         this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, recForm,
                             msgReceived.strMessage);
                     }
+                    else if (msgReceived.cmdCommand.Equals(Command.Download) && msgReceived.strName.Equals(LoginName))
+                    {
+                        //Új ablak nyitása a megfelelő adatok átadásával.
+                        DownloadDelegate downForm = new DownloadDelegate(DownForm);
+                        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, downForm,
+                            msgReceived.strMessage);
+                    }
                     else
                     {
                         UpdateDelegate update = new UpdateDelegate(UpdateMessage);
@@ -173,7 +181,6 @@ namespace Client
             byte[] b = msgToSend.ToByte();
             ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None,
                     new AsyncCallback(OnSend), ClientSocket);
-            //ClientSocket.Send(b);
         }
 
         //Send a logout message
@@ -201,7 +208,6 @@ namespace Client
             msgToSend.strRec = null;
             byte[] b = msgToSend.ToByte();
             ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None, new AsyncCallback(OnSend), ClientSocket);
-            //ClientSocket.Send(b);
         }
 
         private void RecForm(string msgReceivedMsg)
@@ -222,7 +228,7 @@ namespace Client
             {
                 new Thread(() =>
                 {
-                    MessageBox.Show("Sikertelen partnerválasztás.", "SGSclient");
+                    MessageBox.Show("Sikertelen partnerválasztás.", "Client Partner");
                 }).Start();
             }
         }
@@ -311,9 +317,37 @@ namespace Client
             }
         }
 
+        private void DownForm(string fileNames)
+        {
+            //Select a file to download
+            DownloadWindow down_window;
+            down_window = new DownloadWindow(fileNames);
+            if (down_window.ShowDialog() ?? false)
+            {
+                string toDownload = down_window.selectedFile;
+
+                //Download the selected file
+                //TODO
+            }
+            else
+            {
+                new Thread(() =>
+                {
+                    MessageBox.Show("Sikertelen fájlválsztás.", "Client Download");
+                }).Start();
+            }
+        }
+
         private void buttonDownload_Click(object sender, RoutedEventArgs e)
         {
-
+            //FájlLista lekérés küldése
+            Data msgToSend = new Data();
+            msgToSend.cmdCommand = Command.Download;
+            msgToSend.strName = LoginName;
+            msgToSend.strMessage = null;
+            msgToSend.strRec = _partner;
+            byte[] b = msgToSend.ToByte();
+            ClientSocket.BeginSend(b, 0, b.Length, SocketFlags.None, new AsyncCallback(OnSend), ClientSocket);
         }
     }
 }

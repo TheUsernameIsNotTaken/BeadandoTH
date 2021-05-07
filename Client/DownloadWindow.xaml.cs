@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -49,6 +50,14 @@ namespace Client
             //Frissíteni kell a listát
             UpdateDelegate update = new UpdateDelegate(UpdateFiles);
             this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, update, files);
+
+            if (string.IsNullOrEmpty(files))
+            {
+                new Thread(() =>
+                {
+                    MessageBox.Show("Nem találhatóak fájlok!", "Fáljletöltés");
+                }).Start();
+            }
         }
 
         private void FilesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -126,7 +126,10 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Server Loaded");
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Server Loaded");
+                }).Start();
             }   
         }
 
@@ -146,7 +149,10 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Server Connect");
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Server Connect");
+                }).Start();
             }
         }
 
@@ -256,16 +262,43 @@ namespace Server
 
                     case Command.Upload:
                         //Get the correct IP
-                        IPEndPoint ipendpoint = clientSocket.RemoteEndPoint as IPEndPoint;
+                        IPEndPoint upEndPoint = clientSocket.RemoteEndPoint as IPEndPoint;
 
                         //Create a delegate for upload handling
-                        string path = Data.FILES_FOLDER + msgReceived.strName + "-" + msgReceived.strRec;
-                        Directory.CreateDirectory(path);
+                        string pathUp = Data.FILES_FOLDER + msgReceived.strName + "-" + msgReceived.strRec;
+                        Directory.CreateDirectory(pathUp);
                         UploadDelegate upload = new UploadDelegate(BeginUpload);
-                        this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, 
-                            upload, ipendpoint.Address, path + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
+                        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, 
+                            upload, upEndPoint.Address, pathUp + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
 
                         msgToSend.strMessage = "<<<" + msgReceived.strName + " megkezdte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj feltolteset>>>";
+
+                        break;
+
+                    case Command.Download:
+                        //Get the correct IP
+                        IPEndPoint downEndPoint = clientSocket.RemoteEndPoint as IPEndPoint;
+
+                        //Delete message
+                        msgToSend.strMessage = null;
+
+                        //Create a delegate for upload handling
+                        string pathDown = Data.FILES_FOLDER + msgReceived.strName + "-" + msgReceived.strRec;
+                        Directory.CreateDirectory(pathDown);
+                        //DownloadDelegate download = new DownloadDelegate(BeginDownload);
+                        //this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                        //    download, downEndPoint.Address, pathDown + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
+
+                        //Collect all filenames
+                        bool notFirstDown = false;
+                        foreach (string file in Directory.GetFiles(pathDown))
+                        {
+                            if (notFirstDown)
+                                msgToSend.strMessage += "*";
+                            else
+                                notFirstDown = true;
+                            msgToSend.strMessage += file;
+                        }
 
                         break;
 
@@ -277,14 +310,14 @@ namespace Server
                         msgToSend.strMessage = null;
 
                         //Collect the names of the user in the chat 
-                        bool notFirst = false;
+                        bool notFirstList = false;
                         foreach (ClientInfo client in clientList)
                         {
                             //To keep things simple we use asterisk as the marker to separate the user names
-                            if (notFirst)
+                            if (notFirstList)
                                 msgToSend.strMessage += "*";
                             else
-                                notFirst = true;
+                                notFirstList = true;
                             msgToSend.strMessage += client.strName;
 
                         }
@@ -346,7 +379,10 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Server Receive");
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Server Receive");
+                }).Start();
             }
         }
 
@@ -360,26 +396,12 @@ namespace Server
             catch (Exception ex)
             {
                 //Ha sikertelen küldés, akkor a kilépést újra kell kezdeni.
-                MessageBox.Show(ex.Message, "Server Send");
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Server Send");
+                }).Start();
             }
         }
-
-        //public void OnCloseSend(IAsyncResult ar)
-        //{
-        //    try
-        //    {
-        //        Socket client = (Socket)ar.AsyncState;
-        //        client.EndSend(ar);
-        //        CloseDelegate closeRun = new CloseDelegate(CloseRun);
-        //        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, closeRun);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        ////Ha sikertelen küldés, akkor a kilépést újra kell kezdeni.
-        //        //_closeStarted = false;
-        //        MessageBox.Show(ex.Message, "Server Close Send");
-        //    }
-        //}
 
         //Users
         List<User> UpdateUsers()
@@ -492,7 +514,10 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Server Upload");
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Server Upload");
+                }).Start();
             }
 
             _uploading = false;
@@ -525,7 +550,10 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Server Upload Message");
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Server Upload Message");
+                }).Start();
             }
 
             UpdateDelegate update = new UpdateDelegate(UpdateMessage);
