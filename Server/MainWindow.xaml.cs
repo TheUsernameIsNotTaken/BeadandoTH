@@ -53,7 +53,7 @@ namespace Server
         //Delegate
         public delegate void RegFormDelegate();
         public delegate void UploadDelegate(IPAddress address, string filename, string sender, string receiver);
-        public delegate void DownloadDelegate();
+        public delegate void DownloadDelegate(IPAddress address, string filename);
 
         //Pooling
         private bool _uploading = false;
@@ -275,7 +275,7 @@ namespace Server
 
                         break;
 
-                    case Command.Download:
+                    case Command.StartDownload:
                         //Get the correct IP
                         IPEndPoint downEndPoint = clientSocket.RemoteEndPoint as IPEndPoint;
 
@@ -285,19 +285,37 @@ namespace Server
                         //Create a delegate for upload handling
                         string pathDown = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
                         Directory.CreateDirectory(pathDown);
-                        //DownloadDelegate download = new DownloadDelegate(BeginDownload);
-                        //this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
-                        //    download, downEndPoint.Address, pathDown + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
+                        DownloadDelegate download = new DownloadDelegate(BeginDownload);
+                        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                            download, downEndPoint.Address, pathDown + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
+
+                        msgToSend.strMessage = "<<<" + msgReceived.strName + " megkezdte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
+
+                        break;
+
+                    case Command.DownloadAck:
+
+                        //Set the text of the message that we will broadcast to all  (if public)
+                        msgToSend.strMessage = "<<<" + msgReceived.strName + " befejezte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
+                        break;
+
+                    case Command.DownloadList:
+                        //Delete message
+                        msgToSend.strMessage = null;
+
+                        //Create a delegate for upload handling
+                        string pathDirectory = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
+                        Directory.CreateDirectory(pathDirectory);
 
                         //Collect all filenames
-                        bool notFirstDown = false;
-                        foreach (string file in Directory.GetFiles(pathDown))
+                        bool notFirstDownFiles = false;
+                        foreach (string file in Directory.GetFiles(pathDirectory))
                         {
-                            if (notFirstDown)
+                            if (notFirstDownFiles)
                                 msgToSend.strMessage += "*";
                             else
-                                notFirstDown = true;
-                            msgToSend.strMessage += file;
+                                notFirstDownFiles = true;
+                            msgToSend.strMessage += System.IO.Path.GetFileName(file);
                         }
 
                         message = msgToSend.ToByte();
@@ -336,7 +354,7 @@ namespace Server
                         break;
                 }
 
-                if ( !(msgToSend.cmdCommand == Command.List || msgToSend.cmdCommand == Command.Download || msgToSend.cmdCommand == Command.Decline) )   //List and decline messages are not broadcasted
+                if ( !(msgToSend.cmdCommand == Command.List || msgToSend.cmdCommand == Command.DownloadList || msgToSend.cmdCommand == Command.Decline) )   //List and decline messages are not broadcasted
                 {
                     message = msgToSend.ToByte();
 
@@ -381,7 +399,6 @@ namespace Server
                         this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, closeRun);
                     }
                 }
-
             }
             catch (Exception ex)
             {
@@ -565,6 +582,36 @@ namespace Server
             UpdateDelegate update = new UpdateDelegate(UpdateMessage);
             await this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update,
                 msgToSend.strMessage + "\r\n");
+        }
+
+        private async void BeginDownload(IPAddress address, string filename)
+        {
+            //Wait for a free space
+            while (_downloading)
+            {
+                Thread.Sleep(1000);
+            }
+
+            //Start downloading
+            _downloading = true;
+
+            //Try to download, and catch if it's not successfull. 
+            try
+            {
+                using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                {
+                    await socket.ConnectAsync(address, Data.DOWNLOAD_PORT);
+                    // Send Length (Int64)
+                    socket.SendFile(filename);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Server Download");
+            }
+
+            //Download's end
+            _downloading = false;
         }
 
         async void ServerWindow_Closing(object sender, CancelEventArgs e)

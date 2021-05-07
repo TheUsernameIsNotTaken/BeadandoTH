@@ -129,7 +129,7 @@ namespace Client
                         this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, recForm,
                             msgReceived.strMessage);
                     }
-                    else if (msgReceived.cmdCommand.Equals(Command.Download) && msgReceived.strName.Equals(LoginName))
+                    else if (msgReceived.cmdCommand.Equals(Command.DownloadList) && msgReceived.strName.Equals(LoginName))
                     {
                         //Új ablak nyitása a megfelelő adatok átadásával.
                         DownloadDelegate downForm = new DownloadDelegate(DownForm);
@@ -221,7 +221,7 @@ namespace Client
                 this.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Normal, partnerUpdate);
                 new Thread(() =>
                 {
-                    MessageBox.Show("Új beszélgetőpartner: " + ( (_partner.Equals(Data.PUBLIC_ID)) ? "Mindenki" : _partner) , "SGSclient");
+                    MessageBox.Show("Új beszélgetőpartner: " + ( (_partner.Equals(Data.PUBLIC_ID)) ? "Mindenki" : _partner) , "Client Receiver");
                 }).Start();
             }
             else
@@ -256,7 +256,7 @@ namespace Client
         private async void UploadTask()
         {
             //Wait for a free space
-            if (_isUploading)
+            while (_isUploading)
             {
                 Thread.Sleep(1000);
             }
@@ -317,17 +317,108 @@ namespace Client
             }
         }
 
+        private async void DownloadTask(string filename, string sender, string receiver)
+        {
+
+            //Wait for others to finish
+            if (_isDownloading)
+            {
+                Thread.Sleep(2000);
+            }
+
+            //Set the pooling flag
+            _isDownloading = true;
+
+            //Send download starter
+            try
+            {
+                byte[] message;
+                Data msgToSend = new Data();
+                msgToSend.cmdCommand = Command.StartDownload;
+                msgToSend.strName = LoginName;
+                msgToSend.strRec = _partner;
+                msgToSend.strMessage = Path.GetFileName(filename);
+                message = msgToSend.ToByte();
+                ClientSocket.BeginSend(message, 0, message.Length, SocketFlags.None,
+                    new AsyncCallback(OnSend), ClientSocket);
+            }
+            catch (Exception ex)
+            {
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Client Download Start");
+                }).Start();
+            }
+
+            try
+            {
+                var listener = new TcpListener(_endPoint.Address, Data.DOWNLOAD_PORT);
+                listener.Start();
+                using (var client = await listener.AcceptTcpClientAsync())
+                using (var stream = client.GetStream())
+                using (var output = File.Create(filename))
+                {
+                    //Console.WriteLine("Server connected. Starting to receive the file.");
+
+                    // read the file in chunks of 1KB
+                    var buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        output.Write(buffer, 0, bytesRead);
+                    }
+                }
+                listener.Stop();
+                //Console.WriteLine("Server Disconnected.");
+            }
+            catch (Exception ex)
+            {
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Client Download");
+                }).Start();
+            }
+
+            _isDownloading = false;
+
+            //Send an ack message
+            try
+            {
+                byte[] message;
+                Data msgToSend = new Data();
+                msgToSend.cmdCommand = Command.DownloadAck;
+                msgToSend.strName = LoginName;
+                msgToSend.strRec = _partner;
+                msgToSend.strMessage = Path.GetFileName(filename) ;
+                message = msgToSend.ToByte();
+                ClientSocket.BeginSend(message, 0, message.Length, SocketFlags.None,
+                    new AsyncCallback(OnSend), ClientSocket);
+            }
+            catch (Exception ex)
+            {
+                new Thread(() =>
+                {
+                    MessageBox.Show(ex.Message, "Client Download End");
+                }).Start();
+            }
+        }
+
         private void DownForm(string fileNames)
         {
+            //Set the sender and receiver
+            string sender = _partner;
+            string receiver = LoginName ;
+
             //Select a file to download
             DownloadWindow down_window;
             down_window = new DownloadWindow(fileNames);
             if (down_window.ShowDialog() ?? false)
             {
                 string toDownload = down_window.selectedFile;
+                string pathDown = Data.FILES_FOLDER + (receiver.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (sender + "-" + receiver));
 
                 //Download the selected file
-                //TODO
+                Task.Factory.StartNew(() => DownloadTask(pathDown + "\\" + toDownload, sender, receiver));
             }
             else
             {
@@ -342,7 +433,7 @@ namespace Client
         {
             //FájlLista lekérés küldése
             Data msgToSend = new Data();
-            msgToSend.cmdCommand = Command.Download;
+            msgToSend.cmdCommand = Command.DownloadList;
             msgToSend.strName = LoginName;
             msgToSend.strMessage = null;
             msgToSend.strRec = _partner;

@@ -8,16 +8,18 @@ namespace DataLibrary
 
     public enum Command
     {
-        Login,      //Log into the server
-        Logout,     //Logout of the server
-        Message,    //Send a text message to all the chat clients
-        List,       //Get a list of users in the chat room from the server
-        Accept,     //Accept a connection
-        Decline,    //Decline a connection
-        Upload,     //Upload a file
-        Download,   //Download a file
-        Close,      //Close all clients
-        Null        //No command
+        Login,          //Log into the server
+        Logout,         //Logout of the server
+        Message,        //Send a text message to all the chat clients
+        List,           //Get a list of users in the chat room from the server
+        Accept,         //Accept a connection
+        Decline,        //Decline a connection
+        Upload,         //Upload a file
+        DownloadList,   //Download a file
+        StartDownload,  //Starts a specific file's download
+        DownloadAck,  //Starts a specific file's download
+        Close,          //Close all clients
+        Null            //No command
     }
 
     public class Data
