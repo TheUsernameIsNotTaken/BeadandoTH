@@ -59,10 +59,14 @@ namespace Server
         private bool _uploading = false;
         private bool _downloading = false;
 
+        //Closing
+        bool _closeStarted;
+
         public MainWindow()
         {
-            clientList = new ArrayList();
             InitializeComponent();
+            clientList = new ArrayList();
+            _closeStarted = false;
         }
 
         private delegate void UpdateDelegate(string pMessage);
@@ -70,7 +74,26 @@ namespace Server
         private void UpdateMessage(string pMessage)
         {
             this.textBox1.Text += pMessage;
-        }      
+        }
+
+        public delegate void CloseWriteDelegate(bool value);
+        public delegate bool CloseReadDelegate();
+        public delegate void CloseDelegate();
+
+        private void SetCloseStarted(bool value)
+        {
+            _closeStarted = value;
+        }
+
+        private bool GetCloseStarted()
+        {
+            return _closeStarted;
+        }
+
+        private void CloseRun()
+        {
+            this.Close();
+        }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -292,7 +315,6 @@ namespace Server
                             }
                         }
                     }
-                    //textBox1.Text += msgToSend.strMessage;
                     
                     UpdateDelegate update = new UpdateDelegate(UpdateMessage);
                     this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update, 
@@ -305,6 +327,22 @@ namespace Server
                     //Start listening to the message send by the user
                     clientSocket.BeginReceive(byteData, 0, byteData.Length, SocketFlags.None, new AsyncCallback(OnReceive), clientSocket);
                 }
+
+                //Check if it's the last logout
+                if (msgReceived.cmdCommand == Command.Logout && clientList.Count <= 0)
+                {
+                    //Check if we started a close
+                    CloseReadDelegate closeRead = new CloseReadDelegate(GetCloseStarted);
+                    bool closeStarted = (bool)this.Dispatcher.Invoke(DispatcherPriority.Normal, closeRead);
+
+                    //Finish the close
+                    if (closeStarted)
+                    {
+                        CloseDelegate closeRun = new CloseDelegate(CloseRun);
+                        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, closeRun);
+                    }
+                }
+
             }
             catch (Exception ex)
             {
@@ -321,9 +359,27 @@ namespace Server
             }
             catch (Exception ex)
             {
+                //Ha sikertelen küldés, akkor a kilépést újra kell kezdeni.
                 MessageBox.Show(ex.Message, "Server Send");
             }
         }
+
+        //public void OnCloseSend(IAsyncResult ar)
+        //{
+        //    try
+        //    {
+        //        Socket client = (Socket)ar.AsyncState;
+        //        client.EndSend(ar);
+        //        CloseDelegate closeRun = new CloseDelegate(CloseRun);
+        //        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, closeRun);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        ////Ha sikertelen küldés, akkor a kilépést újra kell kezdeni.
+        //        //_closeStarted = false;
+        //        MessageBox.Show(ex.Message, "Server Close Send");
+        //    }
+        //}
 
         //Users
         List<User> UpdateUsers()
@@ -375,18 +431,21 @@ namespace Server
                 User userToAdd = reg_form.NewUser;
 
                 //Check if the username is allowed.
-                if (userToAdd.username.Contains('*') || userToAdd.username.Equals(Data.PUBLIC_ID) || userToAdd.username.Contains('-'))
+                if (userToAdd.username.Contains('*') ||
+                    userToAdd.username.Contains('-') ||
+                    userToAdd.username.Equals(Data.PUBLIC_ID) ||
+                    userToAdd.username.Equals(Data.SERVER_NAME))
                 {
                     new Thread(() =>
                     {
-                        MessageBox.Show("Új felhasználó létrehozása sikertelen. Ok: Érvénytelen felhasználónév.", "SGSserver");
+                        MessageBox.Show("Új felhasználó létrehozása sikertelen. Ok: Érvénytelen felhasználónév.", "Server User Create");
                     }).Start();
                 }
                 else if (_users.Where(user => user.username.Equals(userToAdd.username)).Count() > 0)
                 {
                     new Thread(() =>
                     {
-                        MessageBox.Show("Új felhasználó létrehozása sikertelen. Ok: Létező felhasználónév.", "SGSserver");
+                        MessageBox.Show("Új felhasználó létrehozása sikertelen. Ok: Létező felhasználónév.", "Server User Create");
                     }).Start();
                 }
                 //Update with the authorized new user's data.
@@ -472,6 +531,52 @@ namespace Server
             UpdateDelegate update = new UpdateDelegate(UpdateMessage);
             await this.textBox1.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update,
                 msgToSend.strMessage + "\r\n");
+        }
+
+        async void ServerWindow_Closing(object sender, CancelEventArgs e)
+        {
+            if (clientList.Count > 0)
+            {
+                //Event leállítás
+                e.Cancel = true;
+
+                //Read in closed value
+                CloseReadDelegate closeRead = new CloseReadDelegate(GetCloseStarted);
+                bool closeStarted =  (bool) this.Dispatcher.Invoke(DispatcherPriority.Normal, closeRead);
+
+                //Ha még nincs elindítva, elindítom
+                if (!closeStarted)
+                {
+                    //Kilépés elindítva
+                    CloseWriteDelegate closeSet = new CloseWriteDelegate(SetCloseStarted);
+                    await this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, closeSet, true);
+
+                    //Kilépési adat
+                    Data msgToSend = new Data();
+                    msgToSend.cmdCommand = Command.Close;
+                    msgToSend.strName = Data.SERVER_NAME;
+                    msgToSend.strRec = Data.PUBLIC_ID;
+                    msgToSend.strMessage = "<<<A szerver bezar>>>";
+                    byte[] message = msgToSend.ToByte();
+
+                    List<Task> sendTasks = new List<Task>();
+
+                    //Minden felhasználónak elküldöm
+                    foreach (ClientInfo clientInfo in clientList)
+                    {
+                        sendTasks.Add(new Task( () => clientInfo.socket.Send(message, message.Length, SocketFlags.None)));
+                    }
+
+                    await Task.WhenAll(sendTasks);
+                }
+                else
+                {
+                    new Thread(() =>
+                    {
+                        MessageBox.Show("Várakozás a kliensek lecsatlakozására.");
+                    }).Start();
+                }
+            }
         }
     }
 }

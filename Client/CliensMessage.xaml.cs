@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace Client
 {
@@ -32,6 +33,12 @@ namespace Client
         private delegate void RecFormDelegate(string msgReceivedMsg);
         private delegate void FoFormDelegate();
         private delegate void LogOutDelegate();
+        private delegate void CloseDelegate();
+
+        private void CloseRun()
+        {
+            this.Close();
+        }
 
         ////-------------
         ////TEST
@@ -107,7 +114,7 @@ namespace Client
                     _safeClose = true;
 
                     FoFormDelegate foForm = new FoFormDelegate(FoForm);
-                    this.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Normal, foForm);
+                    this.Dispatcher.Invoke(DispatcherPriority.Normal, foForm);
                 }
                 else
                 {
@@ -118,14 +125,20 @@ namespace Client
                     {
                         //Új ablak nyitása a megfelelő adatok átadásával.
                         RecFormDelegate recForm = new RecFormDelegate(RecForm);
-                        this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, recForm,
+                        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, recForm,
                             msgReceived.strMessage);
                     }
                     else
                     {
                         UpdateDelegate update = new UpdateDelegate(UpdateMessage);
-                        this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, update,
+                        this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, update,
                             msgReceived.strMessage + "\r\n");
+
+                        if (msgReceived.cmdCommand.Equals(Command.Close))
+                        {
+                            CloseDelegate closeRun = new CloseDelegate(CloseRun);
+                            this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, closeRun);
+                        }
                     }
                 }
             }
@@ -296,6 +309,11 @@ namespace Client
 
                 Task.Factory.StartNew(() => UploadTask());
             }
+        }
+
+        private void buttonDownload_Click(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

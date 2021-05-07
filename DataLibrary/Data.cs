@@ -16,6 +16,7 @@ namespace DataLibrary
         Decline,    //Decline a connection
         Upload,     //Upload a file
         Download,   //Download a file
+        Close,      //Close all clients
         Null        //No command
     }
 
@@ -23,6 +24,7 @@ namespace DataLibrary
     {
 
         public static string FILES_FOLDER = "Files\\";
+        public static string SERVER_NAME = "SERVER";
         public static string PUBLIC_ID = "PUBLIC";
         public static int UPLOAD_PORT = 1001;
         public static int DOWNLOAD_PORT = 1002;
