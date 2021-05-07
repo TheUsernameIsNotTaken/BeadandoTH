@@ -11,8 +11,8 @@ Tartalmazza:
  - Többszálas, aszinkron működés mind GUI frissítés, ablakok kezelése és kommunikáció területén is (ahol lehetséges).
  - Szervez bezárás esetén szabályos kijelentkeztetés
 
-Update 1:
-4-es szintű alapprojekt.
+Update 1 --> 4-es szintű alapprojekt.
+Update 2 --> Fájlfeltöltés
 
 Tervezett frissítési út:
  - Fájlok megosztása.
