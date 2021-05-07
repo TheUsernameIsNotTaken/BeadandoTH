@@ -335,8 +335,8 @@ namespace Client
                 byte[] message;
                 Data msgToSend = new Data();
                 msgToSend.cmdCommand = Command.StartDownload;
-                msgToSend.strName = LoginName;
-                msgToSend.strRec = _partner;
+                msgToSend.strName = sender;
+                msgToSend.strRec = receiver;
                 msgToSend.strMessage = Path.GetFileName(filename);
                 message = msgToSend.ToByte();
                 ClientSocket.BeginSend(message, 0, message.Length, SocketFlags.None,
@@ -350,13 +350,13 @@ namespace Client
                 }).Start();
             }
 
-            try
+            var listener = new TcpListener(_endPoint.Address, Data.DOWNLOAD_PORT);
+            listener.Start();
+            using (var client = await listener.AcceptTcpClientAsync())
+            using (var stream = client.GetStream())
+            using (var output = File.Create(filename))
             {
-                var listener = new TcpListener(_endPoint.Address, Data.DOWNLOAD_PORT);
-                listener.Start();
-                using (var client = await listener.AcceptTcpClientAsync())
-                using (var stream = client.GetStream())
-                using (var output = File.Create(filename))
+                try
                 {
                     //Console.WriteLine("Server connected. Starting to receive the file.");
 
@@ -368,16 +368,16 @@ namespace Client
                         output.Write(buffer, 0, bytesRead);
                     }
                 }
-                listener.Stop();
-                //Console.WriteLine("Server Disconnected.");
-            }
-            catch (Exception ex)
-            {
-                new Thread(() =>
+                catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message, "Client Download");
-                }).Start();
+                    new Thread(() =>
+                    {
+                        MessageBox.Show(ex.Message, "Client Download");
+                    }).Start();
+                }
             }
+            listener.Stop();
+            //Console.WriteLine("Server Disconnected.");
 
             _isDownloading = false;
 
@@ -387,8 +387,8 @@ namespace Client
                 byte[] message;
                 Data msgToSend = new Data();
                 msgToSend.cmdCommand = Command.DownloadAck;
-                msgToSend.strName = LoginName;
-                msgToSend.strRec = _partner;
+                msgToSend.strName = sender;
+                msgToSend.strRec = receiver;
                 msgToSend.strMessage = Path.GetFileName(filename) ;
                 message = msgToSend.ToByte();
                 ClientSocket.BeginSend(message, 0, message.Length, SocketFlags.None,
@@ -407,7 +407,7 @@ namespace Client
         {
             //Set the sender and receiver
             string sender = _partner;
-            string receiver = LoginName ;
+            string receiver = LoginName;
 
             //Select a file to download
             DownloadWindow down_window;
@@ -415,7 +415,8 @@ namespace Client
             if (down_window.ShowDialog() ?? false)
             {
                 string toDownload = down_window.selectedFile;
-                string pathDown = Data.FILES_FOLDER + (receiver.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (sender + "-" + receiver));
+                string pathDown = Data.FILES_FOLDER + (sender.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (sender + "-" + receiver));
+                Directory.CreateDirectory(pathDown);
 
                 //Download the selected file
                 Task.Factory.StartNew(() => DownloadTask(pathDown + "\\" + toDownload, sender, receiver));

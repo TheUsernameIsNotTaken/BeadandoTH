@@ -283,11 +283,11 @@ namespace Server
                         msgToSend.strMessage = null;
 
                         //Create a delegate for upload handling
-                        string pathDown = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
+                        string pathDown = Data.FILES_FOLDER + (msgReceived.strName.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
                         Directory.CreateDirectory(pathDown);
                         DownloadDelegate download = new DownloadDelegate(BeginDownload);
                         this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
-                            download, downEndPoint.Address, pathDown + "\\" + msgReceived.strMessage, msgReceived.strName, msgReceived.strRec);
+                            download, downEndPoint.Address, pathDown + "\\" + msgReceived.strMessage);
 
                         msgToSend.strMessage = "<<<" + msgReceived.strName + " megkezdte a '" + System.IO.Path.GetFileName(msgReceived.strMessage) + "' nevu falj letolteset>>>";
 
@@ -304,7 +304,7 @@ namespace Server
                         msgToSend.strMessage = null;
 
                         //Create a delegate for upload handling
-                        string pathDirectory = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strName + "-" + msgReceived.strRec));
+                        string pathDirectory = Data.FILES_FOLDER + (msgReceived.strRec.Equals(Data.PUBLIC_ID) ? Data.PUBLIC_ID : (msgReceived.strRec + "-" + msgReceived.strName));
                         Directory.CreateDirectory(pathDirectory);
 
                         //Collect all filenames
