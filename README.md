@@ -12,6 +12,7 @@ Tartalmazza:
  - Szervez bezárás esetén szabályos kijelentkeztetés
 
 Update 1 --> 4-es szintű alapprojekt.
+
 Update 2 --> Fájlfeltöltés
 
 Tervezett frissítési út:
