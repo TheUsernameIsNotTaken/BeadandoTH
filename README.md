@@ -10,11 +10,12 @@ Tartalmazza:
  - A kliens lecsatlakoztatása minden kilépési forma esetén.
  - Többszálas, aszinkron működés mind GUI frissítés, ablakok kezelése és kommunikáció területén is (ahol lehetséges).
  - Szerver bezárás esetén szabályos kijelentkeztetés.
+ - Fájlok megosztása.
 
 Nagyobb mérföldkövek:
  - Update 1 --> 4-es szintű alapprojekt.
  - Update 2 --> Fájlfeltöltés.
  - Update 3 --> Szerver bezárás esetén szabályos kijelentkeztetés.
+ - Update 4 --> Fájlmegosztás sikeres
 
-Tervezett frissítési út:
- - Fájlok megosztása.
+Ellenőrizendő: Lekapcsolódás és Fel/letöltés debug.
