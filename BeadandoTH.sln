@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\Server.csproj", "{87D5CCBB-A4BE-49CD-9E71-3FED1FEA879E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataLibrary", "DataLibrary\DataLibrary.csproj", "{95DDC25A-D2CA-492D-A185-96F87C038CD2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataLibrary", "DataLibrary\DataLibrary.csproj", "{95DDC25A-D2CA-492D-A185-96F87C038CD2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,6 +20,7 @@ Global
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Debug|Any CPU.Build.0 = Debug|x86
 		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Debug|x64.ActiveCfg = Debug|x86
 		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Debug|x86.ActiveCfg = Debug|x86
 		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Debug|x86.Build.0 = Debug|x86
@@ -28,6 +29,7 @@ Global
 		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Release|x86.ActiveCfg = Release|x86
 		{FDB7EB1F-60F4-476B-B18E-71331F5B99C6}.Release|x86.Build.0 = Release|x86
 		{87D5CCBB-A4BE-49CD-9E71-3FED1FEA879E}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{87D5CCBB-A4BE-49CD-9E71-3FED1FEA879E}.Debug|Any CPU.Build.0 = Debug|x86
 		{87D5CCBB-A4BE-49CD-9E71-3FED1FEA879E}.Debug|x64.ActiveCfg = Debug|x64
 		{87D5CCBB-A4BE-49CD-9E71-3FED1FEA879E}.Debug|x64.Build.0 = Debug|x64
 		{87D5CCBB-A4BE-49CD-9E71-3FED1FEA879E}.Debug|x86.ActiveCfg = Debug|x86

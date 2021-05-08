@@ -73,6 +73,10 @@
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>
+    </StartupObject>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="DataLibrary">
       <HintPath>..\DataLibrary\bin\Debug\netstandard2.0\DataLibrary.dll</HintPath>
